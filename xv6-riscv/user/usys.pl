@@ -36,3 +36,7 @@ entry("getpid");
 entry("sbrk");
 entry("sleep");
 entry("uptime");
+entry("kpages");
+entry("kdirs");
+entry("udirs");
+entry("smem");
