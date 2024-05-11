@@ -114,7 +114,7 @@ sys_smem(void)
   int n;
   argaddr(0, (uint64 *)&addr);
   argint(1, &n);
-  if( n < 0)
+  if( addr < 0 ||  n < 0)
     return -1;
   return smem(addr, n);
 }
