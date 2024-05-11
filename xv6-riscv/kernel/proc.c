@@ -687,3 +687,49 @@ procdump(void)
     printf("\n");
   }
 }
+
+uint64
+smem(char* addr, int n)
+{
+    printf("smem method was called");
+//   char *addr;
+//   int n;
+  struct proc *p = myproc();
+  argint(1, &n);
+  argaddr(0, (void*)&addr);
+  // Fetch the arguments
+  if( n < 0)
+    return -1;
+
+//   // Check if addr and n are multiples of PGSIZE
+//   if((uint64)addr % PGSIZE != 0 || n % PGSIZE != 0)
+//     return -1;
+
+//   // Allocate n / PGSIZE pages
+//   char *pa;
+//   for(int i = 0; i < n / PGSIZE; i++) {
+//     if((pa = kalloc()) == 0)
+//       return -1;
+
+    // Map the allocated kernel pages starting at user virtual address addr
+    // if(mappages(p->pagetable, (uint64)addr + i * PGSIZE, PGSIZE, (uint64)pa, PTE_W | PTE_X | PTE_R | PTE_U) != 0) {
+    //   kfree(pa);
+    //   return -1;
+    // }
+//   }
+if(mappages(p->pagetable, (uint64)addr, n, (uint64)addr, PTE_W|PTE_X|PTE_R|PTE_U) < 0)
+    return -1;
+
+  // Update the proc struct
+  p->shared_mem_addr = addr;
+  p->shared_mem_size = n;
+  p->shared_mem_owner = p->pid;
+
+  return 0;
+}
+
+pagetable_t
+get_pagetable(struct proc *p)
+{
+  return p->pagetable;
+}
