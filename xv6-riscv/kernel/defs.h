@@ -109,6 +109,7 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 uint64          smem(char *, int);
 pagetable_t     get_pagetable(struct proc *);
+uint64          shmcopy(pagetable_t, pagetable_t, char *, int);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
