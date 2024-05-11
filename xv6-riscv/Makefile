@@ -130,6 +130,7 @@ UPROGS=\
 	$U/_mkdir\
 	$U/_rm\
 	$U/_sh\
+	$U/_smem\
 	$U/_smemtest\
 	$U/_stressfs\
 	$U/_usertests\
