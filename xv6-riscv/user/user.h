@@ -22,6 +22,10 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+uint64 kpages(void);
+uint64 kdirs(void);
+uint64 udirs(void);
+uint64 smem(char *, int);
 
 // ulib.c
 int stat(const char*, struct stat*);
