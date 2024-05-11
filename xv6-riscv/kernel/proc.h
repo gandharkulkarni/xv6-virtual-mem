@@ -104,4 +104,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // Shared memory region (added for smem)
+  char *shared_mem_addr;       // Starting virtual address of the shared memory region
+  int shared_mem_size;         // Size of the shared memory region
+  int shared_mem_owner;        // PID of the owner of the shared memory region
 };
