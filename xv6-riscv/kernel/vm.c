@@ -437,3 +437,34 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
     return -1;
   }
 }
+
+// Count the number of allocated page directories for a given pagetable
+int countdirs(pagetable_t pagetable)
+{
+  int count = 0;
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      count += countdirs((pagetable_t)child);
+      count++;
+    }
+  }
+  return count;
+}
+
+uint64
+udirs(void)
+{
+  struct proc *p = myproc();
+  return countdirs(get_pagetable(p))+1; // add 1 to include the top-level page table
+}
+
+uint64
+kdirs(void)
+{
+  return countdirs(kernel_pagetable)+1; // add 1 to include the top-level page table
+}
+
+
