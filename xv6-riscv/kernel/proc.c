@@ -155,6 +155,23 @@ found:
 static void
 freeproc(struct proc *p)
 {
+    // If the process has a shared memory region
+  if(p->shared_mem_addr != 0){
+    // If the process is the owner of the shared memory region,
+    // unmap the shared memory region and deallocate the kernel pages.
+    if(p->pid == p->shared_mem_owner){
+      uvmunmap(p->pagetable, (uint64)p->shared_mem_addr, p->shared_mem_size / PGSIZE, 1);
+    }
+    // If the process is not the owner, just unmap the shared memory region.
+    else {
+      uvmunmap(p->pagetable, (uint64)p->shared_mem_addr, p->shared_mem_size / PGSIZE, 0);
+    }
+    // Deallocate the shared_mem struct
+    // kfree((void*)p->shared_mem_addr);
+    p->shared_mem_addr = 0;
+    p->shared_mem_size = 0;
+    p->shared_mem_owner = 0;
+  }
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
@@ -295,6 +312,18 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
+
+  // If the parent has a shared memory region, inherit it in the child.
+  if(p->shared_mem_addr != 0){
+    np->shared_mem_addr = p->shared_mem_addr;
+    np->shared_mem_size = p->shared_mem_size;
+    np->shared_mem_owner = p->shared_mem_owner;
+    if(shmcopy(p->pagetable, np->pagetable, p->shared_mem_addr, p->shared_mem_size) < 0){
+      freeproc(np);
+      release(&np->lock);
+      return -1;
+    }
+  }
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -689,42 +718,62 @@ procdump(void)
 }
 
 uint64
-smem(char* addr, int n)
+smem(char *addr, int n)
 {
-    printf("smem method was called");
-//   char *addr;
-//   int n;
-  struct proc *p = myproc();
-  argint(1, &n);
-  argaddr(0, (void*)&addr);
-  // Fetch the arguments
-  if( n < 0)
-    return -1;
+    struct proc *p = myproc();
+    argint(1, &n);
+    argaddr(0, (void *)&addr);
+    // Fetch the arguments
+    if (n < 0)
+        return -1;
 
-//   // Check if addr and n are multiples of PGSIZE
-//   if((uint64)addr % PGSIZE != 0 || n % PGSIZE != 0)
-//     return -1;
+    // Check if addr and n are multiples of PGSIZE
+    if ((uint64)addr % PGSIZE != 0 || n % PGSIZE != 0)
+        return -1;
 
-//   // Allocate n / PGSIZE pages
-//   char *pa;
-//   for(int i = 0; i < n / PGSIZE; i++) {
-//     if((pa = kalloc()) == 0)
-//       return -1;
+    char *mem;
+    uint64 a;
+    for (a = (uint64)addr; a < (uint64)addr + n; a += PGSIZE)
+    {
+        if ((mem = kalloc()) == 0)
+        {
+            return -1;
+        }
+        memset(mem, 0, PGSIZE);
+        if (mappages(p->pagetable, a, PGSIZE, (uint64)mem, PTE_W | PTE_X | PTE_R | PTE_U) < 0)
+        {
+            kfree(mem);
+            return -1;
+        }
+    }
+    // Initialize the shared_mem struct
+    p->shared_mem_addr = addr;
+    p->shared_mem_size = n;
+    p->shared_mem_owner = p->pid;
 
-    // Map the allocated kernel pages starting at user virtual address addr
-    // if(mappages(p->pagetable, (uint64)addr + i * PGSIZE, PGSIZE, (uint64)pa, PTE_W | PTE_X | PTE_R | PTE_U) != 0) {
-    //   kfree(pa);
-    //   return -1;
-    // }
-//   }
-if(mappages(p->pagetable, (uint64)addr, n, (uint64)addr, PTE_W|PTE_X|PTE_R|PTE_U) < 0)
-    return -1;
+    return 0;
+}
 
-  // Update the proc struct
-  p->shared_mem_addr = addr;
-  p->shared_mem_size = n;
-  p->shared_mem_owner = p->pid;
+uint64
+shmcopy(pagetable_t old, pagetable_t new, char *shared_mem_addr, int shared_mem_size)
+{
+  pte_t *pte;
+  uint64 pa, i;
+  uint flags;
+  char *mem;
 
+  for(i = (uint64)shared_mem_addr; i < (uint64)shared_mem_addr + shared_mem_size; i += PGSIZE){
+    if((pte = walk(old, i, 0)) == 0)
+      panic("shmcopy: pte should exist");
+    if((*pte & PTE_V) == 0)
+      panic("shmcopy: page not present");
+    pa = PTE2PA(*pte);
+    flags = PTE_FLAGS(*pte);
+    mem = (char *) pa;
+    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
+      return -1;
+    }
+  }
   return 0;
 }
 
