@@ -89,3 +89,32 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_kpages(void)
+{
+  return kpages();
+}
+
+uint64 
+sys_kdirs(void){
+    return kdirs();
+}
+
+uint64
+sys_udirs(void){
+    return udirs();
+}
+
+
+uint64
+sys_smem(void)
+{
+  char *addr;
+  int n;
+  argaddr(0, (uint64 *)&addr);
+  argint(1, &n);
+  if( n < 0)
+    return -1;
+  return smem(addr, n);
+}
